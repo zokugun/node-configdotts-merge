@@ -1,0 +1,22 @@
+file1: |
+  // File1 plugins
+  export default {
+      // File1: plugins
+      plugins: ["plugin1"]
+  };
+
+file2: |
+  // File2 plugins
+  export default {
+      // File2: plugins
+      plugins: ["plugin2"]
+  };
+
+output: |
+  // File1 plugins
+  // File2 plugins
+  export default {
+      // File1: plugins
+      // File2: plugins
+      plugins: ["plugin1", "plugin2"]
+  };

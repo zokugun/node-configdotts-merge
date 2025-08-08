@@ -1,0 +1,26 @@
+file1: |
+  import { defineConfig } from "vite";
+  // File1 plugins
+  export default defineConfig(async () => ({
+      // File1: plugins
+      plugins: ["plugin1"]
+  }));
+
+file2: |
+  import { defineConfig } from "vite";
+  // File2 plugins
+  export default defineConfig(async () => ({
+      // File2: plugins
+      plugins: ["plugin2"]
+  }));
+
+output: |
+  import { defineConfig } from "vite";
+
+  // File1 plugins
+  // File2 plugins
+  export default defineConfig(async () => ({
+      // File1: plugins
+      // File2: plugins
+      plugins: ["plugin1", "plugin2"]
+  }));

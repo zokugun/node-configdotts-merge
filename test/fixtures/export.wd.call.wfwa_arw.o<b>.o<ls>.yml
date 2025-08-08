@@ -1,0 +1,31 @@
+file1: |
+  import { defineConfig } from "vite";
+  // File1 plugins
+  export default defineConfig(async () => ({
+      // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+      //
+      // 1. prevent vite from obscuring rust errors
+      clearScreen: false,
+  }));
+
+file2: |
+  import { defineConfig } from "vite";
+  // File2 plugins
+  export default defineConfig(async () => ({
+      // File2: plugins
+      plugins: ["plugin2"]
+  }));
+
+output: |
+  import { defineConfig } from "vite";
+
+  // File1 plugins
+  // File2 plugins
+  export default defineConfig(async () => ({
+      // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+      //
+      // 1. prevent vite from obscuring rust errors
+      clearScreen: false,
+      // File2: plugins
+      plugins: ["plugin2"]
+  }));
