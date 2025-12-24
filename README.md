@@ -9,7 +9,7 @@
 
 **@zokugun/configdotts-merge** is a TypeScript library for merging multiple configuration files (such as Vite, ESLint, Prettier, etc.) written in `.ts`, **while preserving comments**.
 
-- Supports `export default {...}`, `export default anyFunction({...})`, and function/arrow-based configs.
+- Supports `export default {...}`, `export default anyFunction({...})`, `export default variable`, and function/arrow-based configs.
 - Preserves comments.
 - Uses TypeScript’s AST for safe, reliable merging.
 

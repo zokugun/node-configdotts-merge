@@ -1,8 +1,8 @@
 import ts from 'typescript';
+import { mergeExportCall } from './merge-export-call.js';
 import { copyAllComments } from './utils/copy-all-comments.js';
 import { extractConfigObject } from './utils/extract-config-object.js';
 import { extractNodes } from './utils/extract-nodes.js';
-import { getExportCallWrapper } from './utils/get-export-call-wrapper.js';
 import { mergeImports } from './utils/merge-imports.js';
 import { mergeObjectLiterals } from './utils/merge-object-literals.js';
 import { parseSource } from './utils/parse-source.js';
@@ -18,8 +18,8 @@ export function merge(source1: string, source2: string): string {
 	const mergedImports = mergeImports(imp1, imp2, sf1, sf2);
 
 	// Merge config objects
-	const config1 = extractConfigObject(exportDefault1);
-	const config2 = extractConfigObject(exportDefault2);
+	const { config: config1, exportCall: exportCall1, variableStatement: variableStatement1 } = extractConfigObject(exportDefault1, statements1);
+	const { config: config2, exportCall: exportCall2, variableStatement: variableStatement2 } = extractConfigObject(exportDefault2, statements2);
 
 	if(!config1 || !config2) {
 		throw new Error('Could not find config objects.');
@@ -30,105 +30,22 @@ export function merge(source1: string, source2: string): string {
 	// Decide how to wrap the export default (call, function, or bare object)
 	let exportAssignment: ts.ExportAssignment;
 
-	const exportCall = getExportCallWrapper(exportDefault1) ?? getExportCallWrapper(exportDefault2);
+	const exportCall = exportCall1 ?? exportCall2;
+	const variableStatement = variableStatement1 ?? variableStatement2;
 
 	if(exportCall) {
-		// If a function was called with an object, replace with merged object
-		const argument = exportCall.arguments[0];
+		const newDefineConfigCall = mergeExportCall(exportCall, mergedConfig);
 
-		let newArgument: ts.Expression;
-
-		if(ts.isObjectLiteralExpression(argument)) {
-			newArgument = mergedConfig;
-		}
-		else if(ts.isArrowFunction(argument)) {
-			if(ts.isBlock(argument.body)) {
-				// Replace return object
-				const newStatements = argument.body.statements.map((stmt) => {
-					if(
-						ts.isReturnStatement(stmt)
-						&& stmt.expression
-						&& ts.isObjectLiteralExpression(stmt.expression)
-					) {
-						return ts.factory.createReturnStatement(mergedConfig);
-					}
-
-					return stmt;
-				});
-				newArgument = ts.factory.createArrowFunction(
-					argument.modifiers,
-					argument.typeParameters,
-					argument.parameters,
-					argument.type,
-					argument.equalsGreaterThanToken,
-					ts.factory.createBlock(newStatements, true),
-				);
-			}
-			else if(ts.isObjectLiteralExpression(argument.body)) {
-				newArgument = ts.factory.createArrowFunction(
-					argument.modifiers,
-					argument.typeParameters,
-					argument.parameters,
-					argument.type,
-					argument.equalsGreaterThanToken,
-					mergedConfig,
-				);
-			}
-			else if(ts.isParenthesizedExpression(argument.body) && ts.isObjectLiteralExpression(argument.body.expression)) {
-				newArgument = ts.factory.createArrowFunction(
-					argument.modifiers,
-					argument.typeParameters,
-					argument.parameters,
-					argument.type,
-					argument.equalsGreaterThanToken,
-					mergedConfig,
-				);
-			}
-			else {
-				newArgument = argument;
-			}
-		}
-		else if(ts.isFunctionExpression(argument)) {
-			if(ts.isBlock(argument.body)) {
-				const newStatements = argument.body.statements.map((stmt) => {
-					if(
-						ts.isReturnStatement(stmt)
-						&& stmt.expression
-						&& ts.isObjectLiteralExpression(stmt.expression)
-					) {
-						return ts.factory.createReturnStatement(mergedConfig);
-					}
-
-					return stmt;
-				});
-				newArgument = ts.factory.createFunctionExpression(
-					argument.modifiers,
-					argument.asteriskToken,
-					argument.name,
-					argument.typeParameters,
-					argument.parameters,
-					argument.type,
-					ts.factory.createBlock(newStatements, true),
-				);
-			}
-			else {
-				newArgument = argument;
-			}
-		}
-		else {
-			newArgument = mergedConfig;
-		}
-
-		const newDefineConfigCall = ts.factory.createCallExpression(
-			exportCall.expression,
-			exportCall.typeArguments,
-			[newArgument],
-		);
 		exportAssignment = ts.factory.createExportAssignment(
 			undefined,
 			false,
 			newDefineConfigCall,
 		);
+	}
+	else if(variableStatement) {
+		exportAssignment = exportDefault1!;
+
+		copyAllComments(variableStatement2!, variableStatement1!, sf2);
 	}
 	else {
 		exportAssignment = ts.factory.createExportAssignment(
@@ -149,11 +66,15 @@ export function merge(source1: string, source2: string): string {
 	}
 
 	if(statements1.length > 0 || statements2.length > 0) {
-		mergedStatements.push(
-			...statements1.map((stmt) => copyAllComments(stmt, stmt, sf1)),
-			...statements2.map((stmt) => copyAllComments(stmt, stmt, sf2)),
-			addEmptyLine(),
-		);
+		mergedStatements.push(...statements1.map((stmt) => copyAllComments(stmt, stmt, sf1)));
+
+		for(const statement of statements2) {
+			if(statement !== variableStatement2) {
+				mergedStatements.push(copyAllComments(statement, statement, sf2));
+			}
+		}
+
+		mergedStatements.push(addEmptyLine());
 	}
 
 	mergedStatements.push(exportAssignment);

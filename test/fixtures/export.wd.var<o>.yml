@@ -1,0 +1,28 @@
+file1: |
+  // File1 plugins
+  const config = {
+      // File1: plugins
+      plugins: ["plugin1"]
+  };
+
+  export default config;
+
+file2: |
+  // File2 plugins
+  const config = {
+      // File2: plugins
+      plugins: ["plugin2"]
+  };
+
+  export default config;
+
+output: |
+  // File2 plugins
+  // File1 plugins
+  const config = {
+      // File1: plugins
+      // File2: plugins
+      plugins: ["plugin1", "plugin2"]
+  };
+
+  export default config;
