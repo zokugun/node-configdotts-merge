@@ -55,5 +55,8 @@
 		"xo": "0.60.0",
 		"yaml": "^1.10.2"
 	},
-	"keywords": []
+	"keywords": [],
+	"peerDependencies": {
+		"typescript": ">=5.0.0"
+	}
 }
