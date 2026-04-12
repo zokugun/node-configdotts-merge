@@ -7,7 +7,7 @@
 		],
 
 		/* Modules */
-		"module": "commonjs",							/* Specify what module code is generated. */
+		"module": "node16",							/* Specify what module code is generated. */
 
 		/* Basic Options */
 		// "allowJs": false,							/* Allow javascript files to be compiled. */
