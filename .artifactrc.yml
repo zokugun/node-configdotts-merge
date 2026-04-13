@@ -13,7 +13,7 @@ artifacts:
     version: 0.2.8
   "@daiyam/artifact-npm-zokugun":
     version: 0.2.2
-  "@daiyam/artifact-test-mocha-ts":
-    version: 0.4.3
   "@daiyam/artifact-gh-issuehub":
     version: 0.5.4
+  "@daiyam/artifact-test-vitest-ts":
+    version: 0.4.1

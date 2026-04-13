@@ -4,7 +4,6 @@
 	],
 	"search.exclude": {
 		"lib/**": true,
-		"package-lock.json": true,
-		".test/**": true,
+		"package-lock.json": true
 	},
 }
