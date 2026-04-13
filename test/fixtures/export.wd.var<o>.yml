@@ -17,8 +17,8 @@ file2: |
   export default config;
 
 output: |
-  // File2 plugins
   // File1 plugins
+  // File2 plugins
   const config = {
       // File1: plugins
       // File2: plugins

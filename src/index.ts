@@ -1,10 +1,12 @@
 import ts from 'typescript';
-import { mergeExportCall } from './merge-export-call.js';
+import { addEmptyLine } from './utils/add-empty-line.js';
 import { copyAllComments } from './utils/copy-all-comments.js';
 import { extractConfigObject } from './utils/extract-config-object.js';
 import { extractNodes } from './utils/extract-nodes.js';
+import { mergeExportCall } from './utils/merge-export-call.js';
 import { mergeImports } from './utils/merge-imports.js';
 import { mergeObjectLiterals } from './utils/merge-object-literals.js';
+import { mergeVariableStatements } from './utils/merge-variable-statements.js';
 import { parseSource } from './utils/parse-source.js';
 
 export function merge(source1: string, source2: string): string {
@@ -31,7 +33,6 @@ export function merge(source1: string, source2: string): string {
 	let exportAssignment: ts.ExportAssignment;
 
 	const exportCall = exportCall1 ?? exportCall2;
-	const variableStatement = variableStatement1 ?? variableStatement2;
 
 	if(exportCall) {
 		const newDefineConfigCall = mergeExportCall(exportCall, mergedConfig);
@@ -42,10 +43,11 @@ export function merge(source1: string, source2: string): string {
 			newDefineConfigCall,
 		);
 	}
-	else if(variableStatement) {
+	else if(variableStatement1) {
 		exportAssignment = exportDefault1!;
-
-		copyAllComments(variableStatement2!, variableStatement1!, sf2);
+	}
+	else if(variableStatement2) {
+		exportAssignment = exportDefault2!;
 	}
 	else {
 		exportAssignment = ts.factory.createExportAssignment(
@@ -66,11 +68,39 @@ export function merge(source1: string, source2: string): string {
 	}
 
 	if(statements1.length > 0 || statements2.length > 0) {
-		mergedStatements.push(...statements1.map((stmt) => copyAllComments(stmt, stmt, sf1)));
+		if(exportAssignment === exportDefault1) {
+			for(const statement of statements1) {
+				if(statement === variableStatement1) {
+					mergedStatements.push(mergeVariableStatements(variableStatement1, config1, sf1, variableStatement2, sf2, mergedConfig));
+				}
+				else {
+					mergedStatements.push(copyAllComments(statement, statement, sf1));
+				}
+			}
+		}
+		else {
+			for(const statement of statements1) {
+				if(statement !== variableStatement1) {
+					mergedStatements.push(copyAllComments(statement, statement, sf1));
+				}
+			}
+		}
 
-		for(const statement of statements2) {
-			if(statement !== variableStatement2) {
-				mergedStatements.push(copyAllComments(statement, statement, sf2));
+		if(exportAssignment === exportDefault2) {
+			for(const statement of statements2) {
+				if(statement === variableStatement2) {
+					mergedStatements.push(mergeVariableStatements(variableStatement2, config2, sf2, variableStatement1, sf1, mergedConfig));
+				}
+				else {
+					mergedStatements.push(copyAllComments(statement, statement, sf2));
+				}
+			}
+		}
+		else {
+			for(const statement of statements2) {
+				if(statement !== variableStatement2) {
+					mergedStatements.push(copyAllComments(statement, statement, sf2));
+				}
 			}
 		}
 
@@ -93,10 +123,4 @@ export function merge(source1: string, source2: string): string {
 	output = output.replaceAll(/^\s*\/\*\s*\*\/\s*\n;\n/gm, '\n');
 
 	return output;
-}
-
-function addEmptyLine(): ts.EmptyStatement {
-	const emptyStmt = ts.factory.createEmptyStatement();
-	ts.addSyntheticLeadingComment(emptyStmt, ts.SyntaxKind.MultiLineCommentTrivia, '', true);
-	return emptyStmt;
 }

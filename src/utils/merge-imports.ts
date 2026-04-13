@@ -1,9 +1,13 @@
 import * as ts from 'typescript';
 import { copyLeadingComments } from './copy-leading-comments.js';
+import { isSingleQuoted } from './is-single-quoted.js';
 
 function addImport(imp: ts.ImportDeclaration, sourceFile: ts.SourceFile, merged: Record<string, ts.ImportDeclaration>, sf1: ts.SourceFile) {
 	const key = (imp.moduleSpecifier as ts.StringLiteral).text;
-	const moduleSpecifier = ts.isStringLiteral(imp.moduleSpecifier) ? ts.factory.createStringLiteral(imp.moduleSpecifier.text) : imp.moduleSpecifier;
+
+	const moduleSpecifier = ts.isStringLiteral(imp.moduleSpecifier)
+		? ts.factory.createStringLiteral(imp.moduleSpecifier.text, isSingleQuoted(imp.moduleSpecifier, sourceFile))
+		: imp.moduleSpecifier;
 
 	if(!merged[key]) {
 		const newImport = ts.factory.createImportDeclaration(
@@ -54,6 +58,7 @@ function addImport(imp: ts.ImportDeclaration, sourceFile: ts.SourceFile, merged:
 		// Merge comments from both
 		copyLeadingComments(imp, newImport, sourceFile);
 		copyLeadingComments(existing, newImport, sf1);
+
 		merged[key] = newImport;
 	}
 	// else: keep the first occurrence (for default, namespace, or type-only imports)

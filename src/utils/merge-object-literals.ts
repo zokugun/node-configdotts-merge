@@ -7,10 +7,10 @@ export function mergeObjectLiterals(object1: ts.ObjectLiteralExpression, object2
 	const mergedProperties: ts.ObjectLiteralElementLike[] = [];
 
 	// Build a map for quick lookup: property name -> (index, property)
-	const map1 = new Map<string, { index: number; property: ts.PropertyAssignment }>();
+	const map1 = new Map<string, { index: number; property: ts.PropertyAssignment; sourceProperty: ts.PropertyAssignment }>();
 
 	// Add properties from first object
-	for(const [index, property] of object1.properties.entries()) {
+	for(const property of object1.properties) {
 		if(!ts.isPropertyAssignment(property)) {
 			continue;
 		}
@@ -19,15 +19,15 @@ export function mergeObjectLiterals(object1: ts.ObjectLiteralExpression, object2
 
 		mergedProperties.push(newProperty);
 
-		if(ts.isPropertyAssignment(property)) {
+		if(ts.isPropertyAssignment(newProperty)) {
 			let key: string | undefined;
 
-			if(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) {
-				key = property.name.text;
+			if(ts.isIdentifier(newProperty.name) || ts.isStringLiteral(newProperty.name)) {
+				key = newProperty.name.text;
 			}
 
 			if(key) {
-				map1.set(key, { index, property });
+				map1.set(key, { index: mergedProperties.length - 1, property: newProperty, sourceProperty: property });
 			}
 		}
 	}
@@ -43,26 +43,36 @@ export function mergeObjectLiterals(object1: ts.ObjectLiteralExpression, object2
 		}
 
 		if(map1.has(property.name.text)) {
-			let { index, property: existingProperty } = map1.get(property.name.text)!;
+			const { index, property: existingProperty, sourceProperty } = map1.get(property.name.text)!;
+			let initializer: ts.Expression;
 
 			if(ts.isObjectLiteralExpression(existingProperty.initializer) && ts.isObjectLiteralExpression(property.initializer)) {
-				(existingProperty as any).initializer = mergeObjectLiterals(existingProperty.initializer, property.initializer, sf1, sf2);
+				const sourceInitializer = ts.isObjectLiteralExpression(sourceProperty.initializer)
+					? sourceProperty.initializer
+					: existingProperty.initializer;
+
+				initializer = mergeObjectLiterals(sourceInitializer, property.initializer, sf1, sf2);
 			}
 			else if(ts.isArrayLiteralExpression(existingProperty.initializer) && ts.isArrayLiteralExpression(property.initializer)) {
 				const elements1 = existingProperty.initializer.elements.map((item) => cloneExpression(item, sf1));
 				const elements2 = property.initializer.elements.map((item) => cloneExpression(item, sf2));
-				const elements = elements1.concat(elements2);
 
-				(existingProperty as any).initializer = ts.factory.createArrayLiteralExpression(elements);
+				initializer = ts.factory.createArrayLiteralExpression(elements1.concat(elements2));
 			}
 			else {
-				(existingProperty as any).initializer = property.initializer;
+				initializer = cloneExpression(property.initializer, sf2);
 			}
 
-			existingProperty = copyAllComments(property, existingProperty, sf1);
-			existingProperty = copyAllComments(property, existingProperty, sf2);
+			let updatedProperty = ts.factory.updatePropertyAssignment(
+				existingProperty,
+				existingProperty.name,
+				initializer,
+			);
 
-			mergedProperties[index] = existingProperty;
+			updatedProperty = copyAllComments(property, updatedProperty, sf2);
+
+			mergedProperties[index] = updatedProperty;
+			map1.set(property.name.text, { index, property: updatedProperty, sourceProperty });
 		}
 		else {
 			const newProperty = clonePropertyElement(property, sf2);
@@ -72,6 +82,38 @@ export function mergeObjectLiterals(object1: ts.ObjectLiteralExpression, object2
 	}
 
 	const mergedObject = ts.factory.createObjectLiteralExpression(mergedProperties, true);
+	const keys1 = getPropertyKeys(object1);
+	const keys2 = getPropertyKeys(object2);
+	const sameKeys = keys1.length === keys2.length && keys1.every((key, i) => key === keys2[i]);
+
+	if(sameKeys && hasTrailingComma(object1, sf1) && hasTrailingComma(object2, sf2)) {
+		(mergedObject as ts.ObjectLiteralExpression & { properties: ts.NodeArray<ts.ObjectLiteralElementLike> }).properties = ts.factory.createNodeArray(mergedProperties, true);
+	}
 
 	return mergedObject;
+}
+
+function getPropertyKeys(node: ts.ObjectLiteralExpression): string[] {
+	const keys: string[] = [];
+
+	for(const property of node.properties) {
+		if(ts.isPropertyAssignment(property) && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))) {
+			keys.push(property.name.text);
+		}
+	}
+
+	keys.sort();
+
+	return keys;
+}
+
+function hasTrailingComma(node: ts.ObjectLiteralExpression, sf: ts.SourceFile): boolean {
+	if(node.pos < 0 || node.end < 0 || node.properties.length === 0) {
+		return node.properties.hasTrailingComma;
+	}
+
+	const lastProperty = node.properties.at(-1)!;
+	const trailingText = sf.text.slice(lastProperty.end, node.end);
+
+	return trailingText.includes(',');
 }

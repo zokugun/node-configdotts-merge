@@ -16,7 +16,7 @@ function prepare(file: string) {
 		const result = merge(file1, file2);
 
 		try {
-			expect(output).to.eql(result);
+			expect(result).to.eql(output);
 		}
 		catch (error: unknown) {
 			console.log(result);

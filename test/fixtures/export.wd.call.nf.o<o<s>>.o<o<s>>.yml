@@ -1,0 +1,24 @@
+file1: |
+  import { defineConfig } from "vitest/config";
+  export default defineConfig({
+      test: {
+          environment: 'node'
+      }
+  });
+
+file2: |
+  import { defineConfig } from "vitest/config";
+  export default defineConfig({
+      test: {
+          environment: 'node'
+      }
+  });
+
+output: |
+  import { defineConfig } from "vitest/config";
+
+  export default defineConfig({
+      test: {
+          environment: 'node'
+      }
+  });

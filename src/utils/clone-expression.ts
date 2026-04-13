@@ -2,6 +2,7 @@ import ts from 'typescript';
 import { clonePropertyName } from './clone-property-name.js';
 import { copyAllComments } from './copy-all-comments.js';
 import { isMultiLine } from './is-multi-line.js';
+import { isSingleQuoted } from './is-single-quoted.js';
 
 /**
  * Recursively clones an expression node, handling string, numeric, boolean, object, array literals.
@@ -10,7 +11,7 @@ export function cloneExpression(node: ts.Expression, sf: ts.SourceFile): ts.Expr
 	let result = node;
 
 	if(ts.isStringLiteral(node)) {
-		result = ts.factory.createStringLiteral(node.text);
+		result = ts.factory.createStringLiteral(node.text, isSingleQuoted(node, sf));
 	}
 	else if(ts.isNumericLiteral(node)) {
 		result = ts.factory.createNumericLiteral(node.text);
