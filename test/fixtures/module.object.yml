@@ -1,0 +1,40 @@
+file1: |
+  module.exports = {
+      plugins: [
+          "chai"
+      ],
+      rules: {
+          "capitalized-comments": "on",
+          "complexity": "off",
+          "max-depth": [
+              "error",
+              2
+          ]
+      }
+  }
+
+file2: |
+  module.exports = {
+      plugins: [
+          "chai-friendly"
+      ],
+      rules: {
+          "capitalized-comments": "off",
+          "max-depth": [
+              "error",
+              8
+          ],
+          "no-await-in-loop": "off"
+      }
+  }
+
+output: |
+  module.exports = {
+      plugins: ["chai", "chai-friendly"],
+      rules: {
+          "capitalized-comments": "off",
+          "complexity": "off",
+          "max-depth": ["error", 2, "error", 8],
+          "no-await-in-loop": "off"
+      }
+  };

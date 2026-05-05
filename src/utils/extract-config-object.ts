@@ -1,37 +1,37 @@
-import * as ts from 'typescript';
+import ts from 'typescript';
 
-export function extractConfigObject(exportDefault: ts.ExportAssignment | undefined, statements: ts.Statement[]): { config?: ts.ObjectLiteralExpression; exportCall?: ts.CallExpression; variableStatement?: ts.VariableStatement } {
-	if(!exportDefault) {
+export function extractConfigObject(exportExpression: ts.Expression | undefined, statements: ts.Statement[]): { config?: ts.ObjectLiteralExpression; exportCall?: ts.CallExpression; variableStatement?: ts.VariableStatement } {
+	if(!exportExpression) {
 		return {};
 	}
 
 	// export default { ... }
-	if(ts.isObjectLiteralExpression(exportDefault.expression)) {
-		return { config: exportDefault.expression };
+	if(ts.isObjectLiteralExpression(exportExpression)) {
+		return { config: exportExpression };
 	}
 
 	// export default defineConfig(...)
-	if(ts.isCallExpression(exportDefault.expression) && ts.isIdentifier(exportDefault.expression.expression) && exportDefault.expression.expression.text === 'defineConfig') {
-		const argument = exportDefault.expression.arguments[0];
+	if(ts.isCallExpression(exportExpression) && ts.isIdentifier(exportExpression.expression) && exportExpression.expression.text === 'defineConfig') {
+		const argument = exportExpression.arguments[0];
 		if(!argument) {
 			return {};
 		}
 
 		// If argument is object literal
 		if(ts.isObjectLiteralExpression(argument)) {
-			return { config: argument, exportCall: exportDefault.expression };
+			return { config: argument, exportCall: exportExpression };
 		}
 
 		// If argument is an arrow function or function expression
 		if(ts.isArrowFunction(argument)	|| ts.isFunctionExpression(argument)) {
 			// If concise: () => ({ ... }) or async () => ({ ... })
 			if(ts.isObjectLiteralExpression(argument.body)) {
-				return { config: argument.body, exportCall: exportDefault.expression };
+				return { config: argument.body, exportCall: exportExpression };
 			}
 
 			// If concise: () => ({ ... }) or async () => ({ ... }) with parentheses
 			if(ts.isParenthesizedExpression(argument.body) && ts.isObjectLiteralExpression(argument.body.expression)) {
-				return { config: argument.body.expression, exportCall: exportDefault.expression };
+				return { config: argument.body.expression, exportCall: exportExpression };
 			}
 
 			// If function body is a block: look for return ...
@@ -40,7 +40,7 @@ export function extractConfigObject(exportDefault: ts.ExportAssignment | undefin
 					if(ts.isReturnStatement(stmt) && stmt.expression) {
 						// Direct return { ... }
 						if(ts.isObjectLiteralExpression(stmt.expression)) {
-							return { config: stmt.expression, exportCall: exportDefault.expression };
+							return { config: stmt.expression, exportCall: exportExpression };
 						}
 
 						// Return Promise.resolve({ ... })
@@ -51,7 +51,7 @@ export function extractConfigObject(exportDefault: ts.ExportAssignment | undefin
 							&& stmt.expression.arguments.length === 1
 							&& ts.isObjectLiteralExpression(stmt.expression.arguments[0])
 						) {
-							return { config: stmt.expression.arguments[0], exportCall: exportDefault.expression };
+							return { config: stmt.expression.arguments[0], exportCall: exportExpression };
 						}
 
 						// Return await Promise.resolve({ ... })
@@ -63,7 +63,7 @@ export function extractConfigObject(exportDefault: ts.ExportAssignment | undefin
 							&& stmt.expression.expression.arguments.length === 1
 							&& ts.isObjectLiteralExpression(stmt.expression.expression.arguments[0])
 						) {
-							return { config: stmt.expression.expression.arguments[0], exportCall: exportDefault.expression };
+							return { config: stmt.expression.expression.arguments[0], exportCall: exportExpression };
 						}
 					}
 				}
@@ -71,8 +71,8 @@ export function extractConfigObject(exportDefault: ts.ExportAssignment | undefin
 		}
 	}
 
-	if(ts.isIdentifier(exportDefault.expression)) {
-		const name = exportDefault.expression.escapedText;
+	if(ts.isIdentifier(exportExpression)) {
+		const name = exportExpression.escapedText;
 
 		for(const statement of statements) {
 			if(ts.isVariableStatement(statement) && ts.isVariableDeclarationList(statement.declarationList)) {

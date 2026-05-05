@@ -13,15 +13,15 @@ export function merge(source1: string, source2: string): string {
 	const sf1 = parseSource(source1);
 	const sf2 = parseSource(source2);
 
-	const { imports: imp1, statements: statements1, exportDefault: exportDefault1 } = extractNodes(sf1);
-	const { imports: imp2, statements: statements2, exportDefault: exportDefault2 } = extractNodes(sf2);
+	const { imports: imp1, statements: statements1, exportDefault: exportDefault1, moduleExports: moduleExports1 } = extractNodes(sf1);
+	const { imports: imp2, statements: statements2, exportDefault: exportDefault2, moduleExports: moduleExports2 } = extractNodes(sf2);
 
 	// Merge imports and variables
 	const mergedImports = mergeImports(imp1, imp2, sf1, sf2);
 
 	// Merge config objects
-	const { config: config1, exportCall: exportCall1, variableStatement: variableStatement1 } = extractConfigObject(exportDefault1, statements1);
-	const { config: config2, exportCall: exportCall2, variableStatement: variableStatement2 } = extractConfigObject(exportDefault2, statements2);
+	const { config: config1, exportCall: exportCall1, variableStatement: variableStatement1 } = extractConfigObject(exportDefault1?.expression ?? (moduleExports1?.expression as ts.BinaryExpression | undefined)?.right, statements1);
+	const { config: config2, exportCall: exportCall2, variableStatement: variableStatement2 } = extractConfigObject(exportDefault2?.expression ?? (moduleExports2?.expression as ts.BinaryExpression | undefined)?.right, statements2);
 
 	if(!config1 || !config2) {
 		throw new Error('Could not find config objects.');
@@ -30,7 +30,7 @@ export function merge(source1: string, source2: string): string {
 	const mergedConfig = mergeObjectLiterals(config1, config2, sf1, sf2);
 
 	// Decide how to wrap the export default (call, function, or bare object)
-	let exportAssignment: ts.ExportAssignment;
+	let exportAssignment: ts.Statement;
 
 	const exportCall = exportCall1 ?? exportCall2;
 
@@ -49,6 +49,12 @@ export function merge(source1: string, source2: string): string {
 	else if(variableStatement2) {
 		exportAssignment = exportDefault2!;
 	}
+	else if(moduleExports1 ?? moduleExports2) {
+		const variable = ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('module'), 'exports');
+		const assignment = ts.factory.createAssignment(variable, mergedConfig);
+
+		exportAssignment = ts.factory.createExpressionStatement(assignment);
+	}
 	else {
 		exportAssignment = ts.factory.createExportAssignment(
 			undefined,
@@ -57,8 +63,8 @@ export function merge(source1: string, source2: string): string {
 		);
 	}
 
-	exportAssignment = copyAllComments(exportDefault1!, exportAssignment, sf1);
-	exportAssignment = copyAllComments(exportDefault2!, exportAssignment, sf2);
+	exportAssignment = copyAllComments(exportDefault1 ?? moduleExports1!, exportAssignment, sf1);
+	exportAssignment = copyAllComments(exportDefault2 ?? moduleExports2!, exportAssignment, sf2);
 
 	// Assemble new source file
 	const mergedStatements: ts.Statement[] = [];
