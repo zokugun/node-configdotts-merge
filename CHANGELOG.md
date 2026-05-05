@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0 | 2026-05-05
+- support commonjs export
+
 ## v0.2.1 | 2026-04-13
 - use locked dependencies
 - use GitHub Environment to publish
